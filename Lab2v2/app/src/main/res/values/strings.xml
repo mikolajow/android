@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">Lab 2v2</string>
+    <string name="choose_activity">Choose Activity</string>
+
+    <string name="pref_color_key">selectedColor</string>
+    <string name="default_color">Blood</string>
+    <string name="switch_activity">Switch Activity</string>
+
+    <string name="aplication_options">aplicationOptions</string>
+    <string name="pref_image_id_key">selectedImageID</string>
+    <string name="add_place_button_text">Add New Place To Visit</string>
+    <string name="switch_text">Apply Color</string>
+    <string name="give_place_to_visit_name">Enter Place Name</string>
+    <string name="seek_bar_text">Choose Priority</string>
+    <string name="find_new_places">Find New Places</string>
+    <string name="secret_feature">Secret Feature...</string>
+    <string name="tam_dam">DAM DAM TADAM</string>
+    <string name="braveButton">Brave Button</string>
+</resources>

@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Lab 2 v 1</string>
+    <string name="listaProsta">Lista Prosta</string>
+    <string name="listaMultichoice">Lista Multichoice</string>
+    <string name="listaMulti">Lista Multi</string>
+    <string name="listaGrid">Lista Grid</string>
+    <string name="listaGridText">Grid Lista</string>
+    <string name="listaDostosowana">Lista Dostosowana</string>
+    <string name="uroboros">Uroboros</string>
+    <string name="pinknyPrawda" >Piękny Prawda? ;)</string>
+</resources>
