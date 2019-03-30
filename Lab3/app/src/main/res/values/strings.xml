@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">Lab 3</string>
+    <string name="xml_menu">XML menu</string>
+    <string name="java_menu">Java Menu</string>
+    <string name="menu_standardowe">Menu Standardowe</string>
+    <string name="menu_kontekstowe">Menu Kontekstowe</string>
+    <string name="menu_checkable">Menu z Checkbox`em</string>
+    <string name="menu_trybu_kontekstowego_akcji">Menu Trybu Kontekstowego Akcji</string>
+    <string name="test">test TEST test</string>
+    <string name="font_color_1">Kolor czcionki 1</string>
+    <string name="font_color_2">Kolor czcionki 2</string>
+    <string name="font_color_3">Kolor czcionki 3</string>
+    <string name="wielkosc_czcionki">Wielkość czcionki</string>
+    <string name="wielkosc_czcionki_1">Wielkość czcionki 1</string>
+    <string name="wielkosc_czcionki_2">Wielkość czcionki 2</string>
+    <string name="wielkosc_czcionki_3">Wielkość czcionki 3</string>
+    <string name="red_blue_font">Czerwona/Niebieska</string>
+    <string name="size">Wielkość</string>
+    <string name="big_or_small">Duże/Małe</string>
+    <string name="background">Background</string>
+    <string name="checkbox">Checkbox</string>
+</resources>
