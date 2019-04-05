@@ -21,14 +21,19 @@ public class MainActivity extends AppCompatActivity {
         configureBottomNavigationListener();
 
         viewPager = (ViewPager) findViewById(R.id.main_fragment_container);
-
+        configureViewPager();
     } // on create
 
 
+
+
+    //TODO dodoać kolejne 2 fragmenty nawigaci do adaptera
     private void configureViewPager() {
         MyPagerAdapter myPagerAdapter = new MyPagerAdapter(getSupportFragmentManager());
-        myPagerAdapter.addFragment(new OptionsFragment(), "Menu");
+        myPagerAdapter.addFragment(new OptionsFragment(), "menu_fragment");
+        this.viewPager.setAdapter(myPagerAdapter);
     }// configure view pager
+
 
     private void configureBottomNavigationListener() {
         bottomNavigationView.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
