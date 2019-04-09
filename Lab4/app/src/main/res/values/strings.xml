@@ -3,4 +3,25 @@
 
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
+
+
+    <string name="options_fragment_tag">optionsFragment</string>
+    <string name="add_cat_fragment_tag">addCatFragment</string>
+    <string name="add_dog_fragment_tag">addDogFragment</string>
+
+
+    <string name="additional_data">additionalData</string>
+
+
+    <string name="cat_name_key">catNameKey</string>
+    <string name="cat_vaccinated_key">catVaccinatedKey</string>
+    <string name="cat_racial_key">catRacialKey</string>
+
+
+    <string name="dog_name_key">dogNameKey</string>
+    <string name="dog_vaccinated_key">dogVaccinatedKey</string>
+    <string name="dog_racial_key">dogRacialKey</string>
+
+    <string name="was_last_fragment_dof_flag_key">lastFragmentWasDogFlag</string>
+
 </resources>
