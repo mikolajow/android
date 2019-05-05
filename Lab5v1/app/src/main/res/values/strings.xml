@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Lab 5v1</string>
+    <string name="light_status">Status światła: </string>
+    <string name="accel_status">Status przyspieszenia: </string>
+    <string name="gps_status">Status położenia: </string>
+
+    <string name="txt_avail">dostępny</string>
+    <string name="txt_unavail">niedostępny</string>
+</resources>

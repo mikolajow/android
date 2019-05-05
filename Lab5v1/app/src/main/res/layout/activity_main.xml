@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".MainActivity">
+
+
+    <TextView
+        android:id="@+id/lightinfo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="informacja o świetle"
+        android:textColor="@android:color/black"
+        android:textSize="20sp" />
+
+    <TextView
+        android:id="@+id/accelinfo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="informacja o przyspieszeniu"
+        android:textColor="@android:color/black"
+        android:textSize="20sp" />
+
+    <TextView
+        android:id="@+id/gpsinfo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="informacja o położeniu"
+        android:textColor="@android:color/black"
+        android:textSize="20sp" />
+
+    <Button
+        android:id="@+id/button_light"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="startAktywnosc"
+        android:text="natężenine światła" />
+
+    <Button
+        android:id="@+id/button_accel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="startAktywnosc"
+        android:text="przyskpieszenie" />
+
+    <Button
+        android:id="@+id/button_gps"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="startAktywnosc"
+        android:text="GPS" />
+</LinearLayout>
