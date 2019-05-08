@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Lab 5v2</string>
+
+    <string name="sensor_status">Żyroskop jest: </string>
+    <string name="available">dostępny!</string>
+    <string name="unavailable">niedostępny!</string>
+
+    <string name="preferences">appPref</string>
+    <string name="owners_list">ownersList</string>
+    <string name="scores_list">scoresList</string>
+
+    <string name="snack_bar_text">Przywrócic wynik?</string>
+    <string name="snack_bar_undo">TAK</string>
+</resources>
