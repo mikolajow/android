@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Lab6</string>
+
+    <string name="preferences">appPref</string>
+
+    <string name="titles_emblem">titlesInSharedPref</string>
+    <string name="names_emblem">namesInSharedPref</string>
+    <string name="dates_emblem">datesInSharedPref</string>
+</resources>
