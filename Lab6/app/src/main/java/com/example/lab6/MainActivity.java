@@ -2,6 +2,7 @@ package com.example.lab6;
 
 import android.Manifest;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
@@ -11,7 +12,12 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.Toast;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -20,23 +26,38 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
 
-    //todo ucinanie fragmentow ciszy - LinkedBlockingQueue jako kolejka FIFO
-    // runOnUiThread - cosik do wielowatkowosci
+    //todo ucinanie fragmentow ciszy - LinkedBlockingQueue jako kolejka FIFO -> runOnUiThread - cosik do wielowatkowosci
+    //todo badanie głośności -> progres bar (opcjonalnie)
 
-
-
-    //todo dodac stale do plikow
     private static final int RECORDER_SAMPLERATE = 44100;
     private static final int RECORDER_CHANNELS = AudioFormat.CHANNEL_IN_MONO;
     private static final int RECORDER_AUDIO_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
 
 
-    //todo dane do arrayLsit -> tytuly, imieNazwisko, data, sciezka do pliku
+    private ArrayList<String> titlesList;
+    private ArrayList<String> nameSurnameList;
+    private ArrayList<String> timeList;
+    private ArrayList<String> pcmFilepathList;
+    private ArrayList<String> wavFilepathList;
+
+
+    private boolean recordingStopped;
+
+
+    private SharedPreferences sharedPref;
+    private SharedPreferences.Editor prefEditor;
+    private Gson gson;
+    Type type;
+
 
     private AudioRecord recorder;
     private Thread recordingThread;
@@ -46,21 +67,53 @@ public class MainActivity extends AppCompatActivity {
     private int minimumBufferSize;        // 2 bytes in 16bit format
 
 
+    private Button startButton;
+    private Button stopButton;
+    private Button saveButton;
+    private Button resetButton;
+
+    private EditText titleInput;
+    private EditText nameInput;
+    private EditText surnameInput;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        minimumBufferSize = AudioRecord.getMinBufferSize(RECORDER_SAMPLERATE,
+        this.startButton = (Button) findViewById(R.id.start_button);
+        this.stopButton = (Button) findViewById(R.id.stop_button);
+        this.saveButton = (Button) findViewById(R.id.save_button);
+        this.resetButton = (Button) findViewById(R.id.delete_button);
+
+        this.titleInput = (EditText) findViewById(R.id.title_edit_text);
+        this.nameInput = (EditText) findViewById(R.id.name_edit_text);
+        this.surnameInput = (EditText) findViewById(R.id.surrname_edit_text);
+
+        this.saveButton.setEnabled(false);
+        this.stopButton.setEnabled(false);
+        this.resetButton.setEnabled(false);
+
+        this.minimumBufferSize = AudioRecord.getMinBufferSize(RECORDER_SAMPLERATE,
                 RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING);
+
+        this.recordingStopped = false;
+
+        this.sharedPref = this.getSharedPreferences(getString(R.string.preferences), MODE_PRIVATE);
+        this.prefEditor = sharedPref.edit();
+
+        this.gson = new Gson();
+        ArrayList<String> defaultList = new ArrayList<>();
+        String jsonDefaultList = gson.toJson(defaultList);
+        this.type = new TypeToken<ArrayList<String>>(){}.getType();
+
+        this.titlesList = gson.fromJson(sharedPref.getString(getString(R.string.titles_list),jsonDefaultList), type);
+        this.nameSurnameList = gson.fromJson(sharedPref.getString(getString(R.string.names_surnames_list),jsonDefaultList), type);
+        this.timeList = gson.fromJson(sharedPref.getString(getString(R.string.time_list),jsonDefaultList), type);
+        this.pcmFilepathList = gson.fromJson(sharedPref.getString(getString(R.string.pcm_filepath_list),jsonDefaultList), type);
+        this.wavFilepathList = gson.fromJson(sharedPref.getString(getString(R.string.wav_filepath_list),jsonDefaultList), type);
     }
 
-
-
-
-
-
-    //todo implementowac metode do usuwania
     public void onButtonsClicked(View view) {
         switch(view.getId()) {
             case R.id.start_button: {
@@ -72,7 +125,7 @@ public class MainActivity extends AppCompatActivity {
                 break;
             }
             case R.id.save_button: {
-                saveWav();
+                saveRecording();
                 break;
             }
             case R.id.delete_button: {
@@ -86,17 +139,6 @@ public class MainActivity extends AppCompatActivity {
         } // switch
     }
 
-
-
-    //todo usowanie danych temporary
-    private void deleteTemporaryRecording() {
-
-    }
-
-
-
-
-    //todo dodac opcje wznowienia nagrania
     private void startRecording() {
 
         requestRecordAudioPermission();
@@ -105,6 +147,8 @@ public class MainActivity extends AppCompatActivity {
                 RECORDER_SAMPLERATE, RECORDER_CHANNELS,
                 RECORDER_AUDIO_ENCODING, minimumBufferSize * bytesPerElement);
 
+        startButton.setEnabled(false);
+        stopButton.setEnabled(true);
 
         this.recorder.startRecording();
         isRecording = true;
@@ -117,13 +161,14 @@ public class MainActivity extends AppCompatActivity {
         recordingThread.start();
     }
 
-
-    //todo zamienic nazwe pliku na stałą
     private void writeAudioDataToFile() {
         // Write the output audio in byte
         short sData[] = new short[minimumBufferSize];
 
-        try(FileOutputStream os = openFileOutput("testowyPlik.pcm", MODE_PRIVATE)) {
+        int fileMode = recordingStopped ? MODE_APPEND : MODE_PRIVATE;
+
+        try(FileOutputStream os = openFileOutput("notatka" +
+                Integer.toString(titlesList.size()) + ".pcm", fileMode)) {
 
             while (isRecording) {
                 // gets the voice output from microphone to byte format
@@ -138,33 +183,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
-    //TODO gson i zapis arraylisty do shared pref - usówanie w aktywnosci lista
-    @Override
-    protected void onPause() {
-        super.onPause();
-    }
-
-
-    //TODO zerowanie pliku i metadanych temporary temporary
-    private void saveWav() {
-
-
-        File rawData = new File("/data/data/com.example.lab6/files/testowyPlik.pcm");
-        File wavFile = new File("/data/data/com.example.lab6/files/zapisany1.wav");
-
-
-        try {
-            rawToWave(rawData, wavFile);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-
-
-
-    //TODO dodac mozliwosc kontynuacji bez kasowania
     private void stopRecording() {
         // stops the recording activity
         if (null != recorder) {
@@ -173,16 +191,86 @@ public class MainActivity extends AppCompatActivity {
             recorder.release();
             recorder = null;
             recordingThread = null;
+            recordingStopped = true;
+        }
+        stopButton.setEnabled(false);
+        startButton.setEnabled(true);
+        resetButton.setEnabled(true);
+        saveButton.setEnabled(true);
+    }
+
+    private void deleteTemporaryRecording() {
+        recordingStopped = false;
+        resetButton.setEnabled(false);
+        saveButton.setEnabled(false);
+    }
+
+    private void saveRecording() {
+        recordingStopped = false;
+        resetButton.setEnabled(false);
+        saveButton.setEnabled(false);
+        saveWav();
+    }
+
+    private void saveWav() {
+        String pcmFilepath = getNewFilePath() + ".pcm";
+        String wacFilepath = getNewFilePath() + ".wav";
+
+        File rawData = new File(pcmFilepath);
+        File wavFile = new File(wacFilepath);
+        try {
+            rawToWave(rawData, wavFile);
+            titlesList.add(titleInput.getText().toString());
+            nameSurnameList.add(nameInput.getText().toString() + " " + surnameInput.getText().toString());
+            timeList.add(getCurrentDate());
+            pcmFilepathList.add(pcmFilepath);
+            wavFilepathList.add(wacFilepath);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        ArrayList<String> defaultList = new ArrayList<>();
+        String jsonDefaultList = gson.toJson(defaultList);
+        this.titlesList = gson.fromJson(sharedPref.getString(getString(R.string.titles_list),jsonDefaultList), type);
+        this.nameSurnameList = gson.fromJson(sharedPref.getString(getString(R.string.names_surnames_list),jsonDefaultList), type);
+        this.timeList = gson.fromJson(sharedPref.getString(getString(R.string.time_list),jsonDefaultList), type);
+        this.pcmFilepathList = gson.fromJson(sharedPref.getString(getString(R.string.pcm_filepath_list),jsonDefaultList), type);
+        this.wavFilepathList = gson.fromJson(sharedPref.getString(getString(R.string.wav_filepath_list),jsonDefaultList), type);
+    }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
 
+        prefEditor.clear();
+        String jsonTitlesList = gson.toJson(this.titlesList);
+        String jsonNameSurnameList = gson.toJson(this.nameSurnameList);
+        String jsonTimeList = gson.toJson(this.timeList);
+        String jsonPCMFilepathList = gson.toJson(this.pcmFilepathList);
+        String jsonWAVFilepathList = gson.toJson(this.wavFilepathList);
 
+        prefEditor.putString(getString(R.string.titles_list), jsonTitlesList);
+        prefEditor.putString(getString(R.string.names_surnames_list), jsonNameSurnameList);
+        prefEditor.putString(getString(R.string.time_list), jsonTimeList);
+        prefEditor.putString(getString(R.string.pcm_filepath_list), jsonPCMFilepathList);
+        prefEditor.putString(getString(R.string.wav_filepath_list), jsonWAVFilepathList);
+        prefEditor.commit();
+    }
 
-
-
-
+    private String getNewFilePath() {
+        String filePath = "/data/data/com.example.lab6/files/notatka"
+            + Integer.toString(titlesList.size());
+        return filePath;
+    }
+    private String getCurrentDate() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd 'godz' HH:mm:ss");
+        String currentDateandTime = sdf.format(new Date());
+        return currentDateandTime;
+    }
     private void rawToWave(final File rawFile, final File waveFile) throws IOException {
 
         byte[] rawData = new byte[(int) rawFile.length()];

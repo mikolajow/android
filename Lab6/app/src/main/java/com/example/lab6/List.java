@@ -16,7 +16,7 @@ import java.util.ArrayList;
 
 public class List extends AppCompatActivity {
 
-    //TODO odtwarzanie przy kliknięciu
+    //TODO odtwarzanie przy kliknięciu -> guziki pauzy, wznowienia, zakonczenia
     //TODO połącznie dwóch notatek w jedną
 
 
@@ -29,6 +29,8 @@ public class List extends AppCompatActivity {
     private ArrayList<String> titles;
     private ArrayList<String> namesAndSurnames;
     private ArrayList<String> dates;
+    private ArrayList<String> pcmFilepathList;
+    private ArrayList<String> wavFilepathList;
 
     Type typeArrayList_String;
 
@@ -47,31 +49,14 @@ public class List extends AppCompatActivity {
 
         this.typeArrayList_String = new TypeToken<ArrayList<String>>(){}.getType();
 
-        this.titles = gson.fromJson(sharedPref.getString(getString(R.string.titles_emblem), jsonDefaultList), typeArrayList_String);
-        this.namesAndSurnames = gson.fromJson(sharedPref.getString(getString(R.string.names_emblem), jsonDefaultList), typeArrayList_String);
-        this.dates = gson.fromJson(sharedPref.getString(getString(R.string.dates_emblem), jsonDefaultList), typeArrayList_String);
-//        titles.add("a");
-//        titles.add("b");
-//        titles.add("c");
-//        titles.add("d");
-//        titles.add("e");
-//        titles.add("f");
-//
-//        namesAndSurnames.add("a");
-//        namesAndSurnames.add("b");
-//        namesAndSurnames.add("c");
-//        namesAndSurnames.add("d");
-//        namesAndSurnames.add("e");
-//        namesAndSurnames.add("f");
-//
-//        dates.add("a");
-//        dates.add("b");
-//        dates.add("c");
-//        dates.add("d");
-//        dates.add("e");
-//        dates.add("f");
+        this.titles = gson.fromJson(sharedPref.getString(getString(R.string.titles_list), jsonDefaultList), typeArrayList_String);
+        this.namesAndSurnames = gson.fromJson(sharedPref.getString(getString(R.string.names_surnames_list), jsonDefaultList), typeArrayList_String);
+        this.dates = gson.fromJson(sharedPref.getString(getString(R.string.time_list), jsonDefaultList), typeArrayList_String);
+        this.pcmFilepathList = gson.fromJson(sharedPref.getString(getString(R.string.pcm_filepath_list), jsonDefaultList), typeArrayList_String);
+        this.wavFilepathList = gson.fromJson(sharedPref.getString(getString(R.string.wav_filepath_list), jsonDefaultList), typeArrayList_String);
+
         this.recyclerView = findViewById(R.id.recycle_view);
-        MyRecycleViewAdapter myAdapter = new MyRecycleViewAdapter(this.titles, this.namesAndSurnames, this.dates);
+        MyRecycleViewAdapter myAdapter = new MyRecycleViewAdapter(this.titles, this.namesAndSurnames, this.dates, this.pcmFilepathList, this.wavFilepathList);
 
         RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(this);
         recyclerView.setLayoutManager(layoutManager);
@@ -89,18 +74,18 @@ public class List extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         prefEditor.clear();
-        String jsonTitlesList = gson.toJson(titles);
-        String jsonNamesList = gson.toJson(namesAndSurnames);
-        String jsonDatesList = gson.toJson(dates);
-        prefEditor.putString(getString(R.string.titles_emblem), jsonTitlesList);
-        prefEditor.putString(getString(R.string.names_emblem), jsonNamesList);
-        prefEditor.putString(getString(R.string.dates_emblem), jsonDatesList);
+        String jsonTitlesList = gson.toJson(this.titles);
+        String jsonNameSurnameList = gson.toJson(this.namesAndSurnames);
+        String jsonTimeList = gson.toJson(this.dates);
+        String jsonPCMFilepathList = gson.toJson(this.pcmFilepathList);
+        String jsonWAVFilepathList = gson.toJson(this.wavFilepathList);
+
+        prefEditor.putString(getString(R.string.titles_list), jsonTitlesList);
+        prefEditor.putString(getString(R.string.names_surnames_list), jsonNameSurnameList);
+        prefEditor.putString(getString(R.string.time_list), jsonTimeList);
+        prefEditor.putString(getString(R.string.pcm_filepath_list), jsonPCMFilepathList);
+        prefEditor.putString(getString(R.string.wav_filepath_list), jsonWAVFilepathList);
         prefEditor.commit();
     }
-
-
-
-
-
 
 }

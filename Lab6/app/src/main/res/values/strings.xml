@@ -3,7 +3,9 @@
 
     <string name="preferences">appPref</string>
 
-    <string name="titles_emblem">titlesInSharedPref</string>
-    <string name="names_emblem">namesInSharedPref</string>
-    <string name="dates_emblem">datesInSharedPref</string>
+    <string name="titles_list">titlesInSharedPref</string>
+    <string name="names_surnames_list">namesAndSurnamesInSharedPref</string>
+    <string name="time_list">timeInSharedPref</string>
+    <string name="pcm_filepath_list">pcmFilepathsInSharedPref</string>
+    <string name="wav_filepath_list">wavFilepathsInSharedPref</string>
 </resources>
