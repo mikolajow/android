@@ -116,3 +116,25 @@ public class GyroscopeSensor extends AppCompatActivity implements MyOwnerAlertDi
         this.scores.add(bestScoreString);
     }
 } // class
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

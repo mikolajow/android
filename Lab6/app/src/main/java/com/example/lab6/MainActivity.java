@@ -4,9 +4,11 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.icu.text.UnicodeSetSpanner;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.os.Environment;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -32,6 +34,8 @@ import java.nio.ByteOrder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -43,20 +47,20 @@ public class MainActivity extends AppCompatActivity {
     private static final int RECORDER_AUDIO_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
 
 
-    private ArrayList<String> titlesList;
-    private ArrayList<String> nameSurnameList;
-    private ArrayList<String> timeList;
-    private ArrayList<String> pcmFilepathList;
-    private ArrayList<String> wavFilepathList;
 
+    private ArrayList<RecordingData> recordings;
+    Type recordingType;
 
     private boolean recordingStopped;
+    private String temporaryFilepath;
+    private String temporaryFileName;
 
 
     private SharedPreferences sharedPref;
     private SharedPreferences.Editor prefEditor;
     private Gson gson;
-    Type type;
+
+
 
 
     private AudioRecord recorder;
@@ -105,13 +109,12 @@ public class MainActivity extends AppCompatActivity {
         this.gson = new Gson();
         ArrayList<String> defaultList = new ArrayList<>();
         String jsonDefaultList = gson.toJson(defaultList);
-        this.type = new TypeToken<ArrayList<String>>(){}.getType();
 
-        this.titlesList = gson.fromJson(sharedPref.getString(getString(R.string.titles_list),jsonDefaultList), type);
-        this.nameSurnameList = gson.fromJson(sharedPref.getString(getString(R.string.names_surnames_list),jsonDefaultList), type);
-        this.timeList = gson.fromJson(sharedPref.getString(getString(R.string.time_list),jsonDefaultList), type);
-        this.pcmFilepathList = gson.fromJson(sharedPref.getString(getString(R.string.pcm_filepath_list),jsonDefaultList), type);
-        this.wavFilepathList = gson.fromJson(sharedPref.getString(getString(R.string.wav_filepath_list),jsonDefaultList), type);
+
+        this.recordingType = new TypeToken<ArrayList<RecordingData>>(){}.getType();
+
+
+        this.recordings = gson.fromJson(sharedPref.getString(getString(R.string.recirding_list_emblem),jsonDefaultList), recordingType);
     }
 
     public void onButtonsClicked(View view) {
@@ -133,6 +136,7 @@ public class MainActivity extends AppCompatActivity {
                 break;
             }
             case R.id.list_button: {
+                requestReadExternalStoragePermission();
                 startActivity(new Intent(this, List.class));
                 break;
             }
@@ -148,7 +152,9 @@ public class MainActivity extends AppCompatActivity {
                 RECORDER_AUDIO_ENCODING, minimumBufferSize * bytesPerElement);
 
         startButton.setEnabled(false);
+        startButton.setBackgroundColor(getColor(R.color.green));
         stopButton.setEnabled(true);
+        stopButton.setBackgroundColor(getColor(R.color.red));
 
         this.recorder.startRecording();
         isRecording = true;
@@ -165,10 +171,15 @@ public class MainActivity extends AppCompatActivity {
         // Write the output audio in byte
         short sData[] = new short[minimumBufferSize];
 
-        int fileMode = recordingStopped ? MODE_APPEND : MODE_PRIVATE;
+        int fileMode = MODE_PRIVATE;
+        if(recordingStopped) {
+            fileMode = MODE_APPEND;
+        } else {
+            this.temporaryFilepath = getNewFilePath();
+        }
 
-        try(FileOutputStream os = openFileOutput("notatka" +
-                Integer.toString(titlesList.size()) + ".pcm", fileMode)) {
+
+        try(FileOutputStream os = openFileOutput(this.temporaryFileName + ".pcm", fileMode)) {
 
             while (isRecording) {
                 // gets the voice output from microphone to byte format
@@ -182,6 +193,7 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
         }
     }
+
 
     private void stopRecording() {
         // stops the recording activity
@@ -197,12 +209,17 @@ public class MainActivity extends AppCompatActivity {
         startButton.setEnabled(true);
         resetButton.setEnabled(true);
         saveButton.setEnabled(true);
+
+        startButton.setBackgroundResource(android.R.drawable.btn_default);;
+        stopButton.setBackgroundResource(android.R.drawable.btn_default);;
     }
 
     private void deleteTemporaryRecording() {
         recordingStopped = false;
         resetButton.setEnabled(false);
         saveButton.setEnabled(false);
+        File pcm = new File(this.temporaryFilepath + ".pcm");
+        pcm.delete();
     }
 
     private void saveRecording() {
@@ -213,18 +230,24 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void saveWav() {
-        String pcmFilepath = getNewFilePath() + ".pcm";
-        String wacFilepath = getNewFilePath() + ".wav";
+        String pcmFilepath = this.temporaryFilepath + ".pcm";
+        String wacFilepath = this.temporaryFilepath + ".wav";
 
         File rawData = new File(pcmFilepath);
         File wavFile = new File(wacFilepath);
         try {
             rawToWave(rawData, wavFile);
-            titlesList.add(titleInput.getText().toString());
-            nameSurnameList.add(nameInput.getText().toString() + " " + surnameInput.getText().toString());
-            timeList.add(getCurrentDate());
-            pcmFilepathList.add(pcmFilepath);
-            wavFilepathList.add(wacFilepath);
+
+            String newTitle = titleInput.getText().toString();
+            String newName = nameInput.getText().toString() + " " + surnameInput.getText().toString();
+            String newDate = getCurrentDate();
+            String newWavPath = wacFilepath;
+
+            RecordingData newRec = new RecordingData(newTitle, newName, newDate, newWavPath);
+
+            rawData.delete();
+
+            recordings.add(newRec);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -235,11 +258,7 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         ArrayList<String> defaultList = new ArrayList<>();
         String jsonDefaultList = gson.toJson(defaultList);
-        this.titlesList = gson.fromJson(sharedPref.getString(getString(R.string.titles_list),jsonDefaultList), type);
-        this.nameSurnameList = gson.fromJson(sharedPref.getString(getString(R.string.names_surnames_list),jsonDefaultList), type);
-        this.timeList = gson.fromJson(sharedPref.getString(getString(R.string.time_list),jsonDefaultList), type);
-        this.pcmFilepathList = gson.fromJson(sharedPref.getString(getString(R.string.pcm_filepath_list),jsonDefaultList), type);
-        this.wavFilepathList = gson.fromJson(sharedPref.getString(getString(R.string.wav_filepath_list),jsonDefaultList), type);
+        this.recordings = gson.fromJson(sharedPref.getString(getString(R.string.recirding_list_emblem),jsonDefaultList), recordingType);
     }
 
     @Override
@@ -247,23 +266,19 @@ public class MainActivity extends AppCompatActivity {
         super.onPause();
 
         prefEditor.clear();
-        String jsonTitlesList = gson.toJson(this.titlesList);
-        String jsonNameSurnameList = gson.toJson(this.nameSurnameList);
-        String jsonTimeList = gson.toJson(this.timeList);
-        String jsonPCMFilepathList = gson.toJson(this.pcmFilepathList);
-        String jsonWAVFilepathList = gson.toJson(this.wavFilepathList);
+        String jsonRecordingsList = gson.toJson(this.recordings);
 
-        prefEditor.putString(getString(R.string.titles_list), jsonTitlesList);
-        prefEditor.putString(getString(R.string.names_surnames_list), jsonNameSurnameList);
-        prefEditor.putString(getString(R.string.time_list), jsonTimeList);
-        prefEditor.putString(getString(R.string.pcm_filepath_list), jsonPCMFilepathList);
-        prefEditor.putString(getString(R.string.wav_filepath_list), jsonWAVFilepathList);
+        prefEditor.putString(getString(R.string.recirding_list_emblem), jsonRecordingsList);
         prefEditor.commit();
     }
 
     private String getNewFilePath() {
-        String filePath = "/data/data/com.example.lab6/files/notatka"
-            + Integer.toString(titlesList.size());
+        String currentDate = getCurrentDateForPath();
+
+        String filePath = this.getFilesDir().getAbsolutePath() + "/nota"
+                + Integer.toString(recordings.size()) + "_" + currentDate;
+
+        this.temporaryFileName ="nota" + Integer.toString(recordings.size()) + "_" + currentDate;
         return filePath;
     }
     private String getCurrentDate() {
@@ -271,6 +286,13 @@ public class MainActivity extends AppCompatActivity {
         String currentDateandTime = sdf.format(new Date());
         return currentDateandTime;
     }
+
+    private String getCurrentDateForPath() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd_HH:mm:ss");
+        String currentDateandTime = sdf.format(new Date());
+        return currentDateandTime;
+    }
+
     private void rawToWave(final File rawFile, final File waveFile) throws IOException {
 
         byte[] rawData = new byte[(int) rawFile.length()];
@@ -317,6 +339,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
     byte[] fullyReadFileToBytes(File f) throws IOException {
         int size = (int) f.length();
         byte bytes[] = new byte[size];
@@ -341,6 +364,7 @@ public class MainActivity extends AppCompatActivity {
 
         return bytes;
     }
+
     private void writeInt(final DataOutputStream output, final int value) throws IOException {
         output.write(value >> 0);
         output.write(value >> 8);
@@ -390,6 +414,30 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
+    private void requestReadExternalStoragePermission() {
+        //check API version, do nothing if API version < 23!
+        int currentapiVersion = android.os.Build.VERSION.SDK_INT;
+        if (currentapiVersion > android.os.Build.VERSION_CODES.LOLLIPOP){
+
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+
+                // Should we show an explanation?
+                if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.READ_EXTERNAL_STORAGE)) {
+
+                    // Show an expanation to the user *asynchronously* -- don't block
+                    // this thread waiting for the user's response! After the user
+                    // sees the explanation, try again to request the permission.
+                    Toast.makeText(this, "nie wiem", Toast.LENGTH_SHORT).show();
+                } else {
+
+                    // No explanation needed, we can request the permission.
+
+                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
+                }
+            }
+        }
+    }
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
         switch (requestCode) {
@@ -414,3 +462,34 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

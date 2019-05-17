@@ -10,8 +10,4 @@
         android:id="@+id/contextualItem2"
         android:title="@string/font_color_2"
         app:showAsAction="never" />
-    <item
-        android:id="@+id/contextualItem3"
-        android:title="@string/font_color_3"
-        app:showAsAction="never" />
 </menu>
