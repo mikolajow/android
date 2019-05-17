@@ -13,6 +13,7 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -33,9 +34,12 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -65,6 +69,8 @@ public class MainActivity extends AppCompatActivity {
 
     private AudioRecord recorder;
     private Thread recordingThread;
+    private Thread processingThread;
+    private LinkedBlockingQueue<short[]> queue;
     private boolean isRecording = false;
 
     private int bytesPerElement = 2;        // 2 bytes in 16bit format
@@ -101,6 +107,7 @@ public class MainActivity extends AppCompatActivity {
         this.minimumBufferSize = AudioRecord.getMinBufferSize(RECORDER_SAMPLERATE,
                 RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING);
 
+        this.queue = new LinkedBlockingQueue();
         this.recordingStopped = false;
 
         this.sharedPref = this.getSharedPreferences(getString(R.string.preferences), MODE_PRIVATE);
@@ -159,12 +166,73 @@ public class MainActivity extends AppCompatActivity {
         this.recorder.startRecording();
         isRecording = true;
 
+
+        //todo ten watek ma dodawac bufory do kolejki a nie zapisywac bezposrednio do pliku
         recordingThread = new Thread(new Runnable() {
             public void run() {
                 writeAudioDataToFile();
             }
         }, "AudioRecorder Thread");
+        recordingThread.setPriority(Thread.MAX_PRIORITY);
         recordingThread.start();
+
+        //todo drugi watek ma ucinac cisze i zapisywac dane do pliku pcm
+        this.processingThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                processDataAndSaveFile();
+            }
+        });
+        processingThread.start();
+    } // startRecording method
+
+    private void processDataAndSaveFile() {
+
+        int fileMode = MODE_PRIVATE;
+        if(recordingStopped) {
+            fileMode = MODE_APPEND;
+        } else {
+            this.temporaryFilepath = getNewFilePath();
+        }
+
+        try(FileOutputStream os = openFileOutput(this.temporaryFileName + ".pcm", fileMode)) {
+
+            while (isRecording || !(queue.isEmpty())) {
+
+                short[] currentPart = queue.take();
+
+
+               // Log.d("Take data from queue", "queue size = " + queue.size());
+
+                int amplitude = getAmplitude(currentPart);
+
+                byte[] bData = short2byte(currentPart);
+
+                if (amplitude > 10) {
+                    os.write(bData, 0, minimumBufferSize * bytesPerElement);
+                }
+
+
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public int getAmplitude(short[] recordingPart) {
+        int biggestSoundLevel;
+
+        short[] copyToOperate = Arrays.copyOf(recordingPart, recordingPart.length);
+        Arrays.sort(copyToOperate);
+        biggestSoundLevel = copyToOperate[copyToOperate.length -1 ];
+        int lowestSoundLevel = copyToOperate[0];
+       // Log.e("AmplitudeCounting","the biggest amplitude is: " + biggestSoundLevel +
+       //         " smallest is " + lowestSoundLevel);
+        return biggestSoundLevel;
     }
 
     private void writeAudioDataToFile() {
@@ -178,22 +246,28 @@ public class MainActivity extends AppCompatActivity {
             this.temporaryFilepath = getNewFilePath();
         }
 
-
         try(FileOutputStream os = openFileOutput(this.temporaryFileName + ".pcm", fileMode)) {
 
             while (isRecording) {
-                // gets the voice output from microphone to byte format
+
+
                 recorder.read(sData, 0, minimumBufferSize, AudioRecord.READ_BLOCKING);
-                byte bData[] = short2byte(sData);
-                os.write(bData, 0, minimumBufferSize * bytesPerElement);
+
+                short[] sDataCopy = Arrays.copyOf(sData, sData.length);
+
+                queue.put(sDataCopy);
+
+               // Log.d("Add data to queue", "queue size = " + queue.size() + " ,rozmiar tab = "+sData.length);
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            Log.e("InterruptedException", "WW@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
         }
     }
-
 
     private void stopRecording() {
         // stops the recording activity
@@ -251,25 +325,6 @@ public class MainActivity extends AppCompatActivity {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        ArrayList<String> defaultList = new ArrayList<>();
-        String jsonDefaultList = gson.toJson(defaultList);
-        this.recordings = gson.fromJson(sharedPref.getString(getString(R.string.recirding_list_emblem),jsonDefaultList), recordingType);
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-
-        prefEditor.clear();
-        String jsonRecordingsList = gson.toJson(this.recordings);
-
-        prefEditor.putString(getString(R.string.recirding_list_emblem), jsonRecordingsList);
-        prefEditor.commit();
     }
 
     private String getNewFilePath() {
@@ -414,7 +469,6 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
-
     private void requestReadExternalStoragePermission() {
         //check API version, do nothing if API version < 23!
         int currentapiVersion = android.os.Build.VERSION.SDK_INT;
@@ -460,6 +514,23 @@ public class MainActivity extends AppCompatActivity {
             // other 'case' lines to check for other
             // permissions this app might request
         }
+    }
+    @Override
+    protected void onResume() {
+        super.onResume();
+        ArrayList<String> defaultList = new ArrayList<>();
+        String jsonDefaultList = gson.toJson(defaultList);
+        this.recordings = gson.fromJson(sharedPref.getString(getString(R.string.recirding_list_emblem),jsonDefaultList), recordingType);
+    }
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        prefEditor.clear();
+        String jsonRecordingsList = gson.toJson(this.recordings);
+
+        prefEditor.putString(getString(R.string.recirding_list_emblem), jsonRecordingsList);
+        prefEditor.commit();
     }
 }
 
