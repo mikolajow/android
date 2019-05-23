@@ -4,7 +4,6 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.icu.text.UnicodeSetSpanner;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
@@ -36,35 +35,29 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class MainActivity extends AppCompatActivity {
 
-    //todo ucinanie fragmentow ciszy - LinkedBlockingQueue jako kolejka FIFO -> runOnUiThread - cosik do wielowatkowosci
     //todo badanie głośności -> progres bar (opcjonalnie)
 
     private static final int RECORDER_SAMPLERATE = 44100;
     private static final int RECORDER_CHANNELS = AudioFormat.CHANNEL_IN_MONO;
     private static final int RECORDER_AUDIO_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
 
-
+    private int minimumAmplitude = 100;
 
     private ArrayList<RecordingData> recordings;
     Type recordingType;
 
     private boolean recordingStopped;
     private String temporaryFilepath;
-    private String temporaryFileName;
+    private File tempFilePCM;
 
 
     private SharedPreferences sharedPref;
     private SharedPreferences.Editor prefEditor;
     private Gson gson;
-
-
 
 
     private AudioRecord recorder;
@@ -170,7 +163,7 @@ public class MainActivity extends AppCompatActivity {
         //todo ten watek ma dodawac bufory do kolejki a nie zapisywac bezposrednio do pliku
         recordingThread = new Thread(new Runnable() {
             public void run() {
-                writeAudioDataToFile();
+                writeDataToQueue();
             }
         }, "AudioRecorder Thread");
         recordingThread.setPriority(Thread.MAX_PRIORITY);
@@ -188,14 +181,16 @@ public class MainActivity extends AppCompatActivity {
 
     private void processDataAndSaveFile() {
 
-        int fileMode = MODE_PRIVATE;
+        boolean append;
         if(recordingStopped) {
-            fileMode = MODE_APPEND;
+            append = true;
         } else {
-            this.temporaryFilepath = getNewFilePath();
+            append = false;
+            getNewFilePath();
+            this.tempFilePCM = new File(temporaryFilepath + ".pcm");
         }
 
-        try(FileOutputStream os = openFileOutput(this.temporaryFileName + ".pcm", fileMode)) {
+        try(FileOutputStream os = new FileOutputStream(tempFilePCM, append)) {
 
             while (isRecording || !(queue.isEmpty())) {
 
@@ -208,7 +203,7 @@ public class MainActivity extends AppCompatActivity {
 
                 byte[] bData = short2byte(currentPart);
 
-                if (amplitude > 10) {
+                if (amplitude > minimumAmplitude) {
                     os.write(bData, 0, minimumBufferSize * bytesPerElement);
                 }
 
@@ -231,38 +226,23 @@ public class MainActivity extends AppCompatActivity {
         biggestSoundLevel = copyToOperate[copyToOperate.length -1 ];
         int lowestSoundLevel = copyToOperate[0];
        // Log.e("AmplitudeCounting","the biggest amplitude is: " + biggestSoundLevel +
-       //         " smallest is " + lowestSoundLevel);
+         //       " smallest is " + lowestSoundLevel);
         return biggestSoundLevel;
     }
 
-    private void writeAudioDataToFile() {
+    private void writeDataToQueue() {
         // Write the output audio in byte
         short sData[] = new short[minimumBufferSize];
 
-        int fileMode = MODE_PRIVATE;
-        if(recordingStopped) {
-            fileMode = MODE_APPEND;
-        } else {
-            this.temporaryFilepath = getNewFilePath();
-        }
-
-        try(FileOutputStream os = openFileOutput(this.temporaryFileName + ".pcm", fileMode)) {
-
+        try {
             while (isRecording) {
-
 
                 recorder.read(sData, 0, minimumBufferSize, AudioRecord.READ_BLOCKING);
 
                 short[] sDataCopy = Arrays.copyOf(sData, sData.length);
 
                 queue.put(sDataCopy);
-
-               // Log.d("Add data to queue", "queue size = " + queue.size() + " ,rozmiar tab = "+sData.length);
             }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
         } catch (InterruptedException e) {
             e.printStackTrace();
             Log.e("InterruptedException", "WW@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
@@ -284,8 +264,8 @@ public class MainActivity extends AppCompatActivity {
         resetButton.setEnabled(true);
         saveButton.setEnabled(true);
 
-        startButton.setBackgroundResource(android.R.drawable.btn_default);;
-        stopButton.setBackgroundResource(android.R.drawable.btn_default);;
+        startButton.setBackgroundResource(android.R.drawable.btn_default);
+        stopButton.setBackgroundResource(android.R.drawable.btn_default);
     }
 
     private void deleteTemporaryRecording() {
@@ -304,22 +284,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void saveWav() {
-        String pcmFilepath = this.temporaryFilepath + ".pcm";
         String wacFilepath = this.temporaryFilepath + ".wav";
 
-        File rawData = new File(pcmFilepath);
         File wavFile = new File(wacFilepath);
         try {
-            rawToWave(rawData, wavFile);
+            rawToWave(tempFilePCM, wavFile);
 
             String newTitle = titleInput.getText().toString();
             String newName = nameInput.getText().toString() + " " + surnameInput.getText().toString();
             String newDate = getCurrentDate();
-            String newWavPath = wacFilepath;
 
-            RecordingData newRec = new RecordingData(newTitle, newName, newDate, newWavPath);
+            RecordingData newRec = new RecordingData(newTitle, newName, newDate, wavFile);
 
-            rawData.delete();
+            tempFilePCM.delete();
 
             recordings.add(newRec);
         } catch (IOException e) {
@@ -327,15 +304,15 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private String getNewFilePath() {
+    private void getNewFilePath() {
         String currentDate = getCurrentDateForPath();
 
-        String filePath = this.getFilesDir().getAbsolutePath() + "/nota"
-                + Integer.toString(recordings.size()) + "_" + currentDate;
+        String filePath = this.getFilesDir().getAbsolutePath() + "/nota" +
+                "_" + currentDate;
 
-        this.temporaryFileName ="nota" + Integer.toString(recordings.size()) + "_" + currentDate;
-        return filePath;
+        this.temporaryFilepath = filePath;
     }
+
     private String getCurrentDate() {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd 'godz' HH:mm:ss");
         String currentDateandTime = sdf.format(new Date());
@@ -343,7 +320,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private String getCurrentDateForPath() {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd_HH:mm:ss");
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd_HH.mm.ss");
         String currentDateandTime = sdf.format(new Date());
         return currentDateandTime;
     }

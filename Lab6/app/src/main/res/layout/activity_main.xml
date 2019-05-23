@@ -47,11 +47,12 @@
                     android:id="@+id/title_edit_text"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
                     android:ems="10"
                     android:hint="Tytuł"
                     android:inputType="textPersonName"
-                    tools:layout_editor_absoluteX="25dp"
-                    tools:layout_editor_absoluteY="16dp" />
+                    app:layout_constraintTop_toTopOf="parent"
+                    tools:layout_editor_absoluteX="25dp" />
 
                 <Button
                     android:id="@+id/start_button"

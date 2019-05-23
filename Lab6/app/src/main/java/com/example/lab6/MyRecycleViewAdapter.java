@@ -112,9 +112,7 @@ public class MyRecycleViewAdapter extends RecyclerView.Adapter<MyRecycleViewAdap
 
 
     public void deleteItem(int position) {
-        String wavFilepath = recordings.get(position).wavPath;
-
-        File wav = new File(wavFilepath);
+        File wav = recordings.get(position).wavFile;
         wav.delete();
 
         recordings.remove(position);

@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.DividerItemDecoration;
@@ -14,6 +15,7 @@ import android.support.v7.widget.helper.ItemTouchHelper;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -29,14 +31,10 @@ import java.util.Date;
 
 
 public class List extends AppCompatActivity implements MyRecycleViewAdapter.OnRecordingItemClickListener,
-        MediaPlayer.OnPreparedListener, MediaPlayer.OnCompletionListener,
-MyMergeAlertDialog.MergeAlertDialogListener{
-
-    //TODO odtwarzanie przy kliknięciu -> guziki pauzy, wznowienia, zakonczenia
+        MediaPlayer.OnCompletionListener, MyMergeAlertDialog.MergeAlertDialogListener {
 
 
     private MediaPlayer player;
-
 
     private static final int RECORDER_SAMPLERATE = 44100;
     private static final int RECORDER_CHANNELS = AudioFormat.CHANNEL_IN_MONO;
@@ -56,15 +54,28 @@ MyMergeAlertDialog.MergeAlertDialogListener{
 
     private int mainRecordingPosition;
     private int subRecordingPosition;
+
+
     private TextView mainTitleTextView;
     private TextView subTitleTextView;
+    private Button stopButton;
+    private Button pauseButton;
+    private Button mergeButton;
 
+    private boolean isPaused;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_list);
+        this.isPaused = false;
+        this.mainRecordingPosition = -1;
+        this.subRecordingPosition = -1;
+
+        this.stopButton = findViewById(R.id.stop_button);
+        this.pauseButton = findViewById(R.id.pause_button);
+        this.mergeButton = findViewById(R.id.merge_button);
 
         this.mainTitleTextView = (TextView) findViewById(R.id.main_to_merge);
         this.subTitleTextView = (TextView) findViewById(R.id.second_to_merge);
@@ -96,6 +107,7 @@ MyMergeAlertDialog.MergeAlertDialogListener{
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(new MySwipeToDeleteCallback(adapter, getApplicationContext()));
         itemTouchHelper.attachToRecyclerView(recyclerView);
 
+        setMergeButton();
     } // consctuctor
 
     @Override
@@ -132,12 +144,9 @@ MyMergeAlertDialog.MergeAlertDialogListener{
         try {
 
 
-
-            String path0 = recordings.get(mainRecordingPosition).wavPath;
-            String path1 = recordings.get(subRecordingPosition).wavPath;
             String newPath = getNewFilePath() + ".wav" ;
-            File ffile0 = new File(path0);
-            File ffile1 = new File(path1);
+            File ffile0 = recordings.get(mainRecordingPosition).wavFile;
+            File ffile1 = recordings.get(subRecordingPosition).wavFile;
 
             ffile0.setReadable(true,false);
             ffile1.setReadable(true,false);
@@ -146,9 +155,6 @@ MyMergeAlertDialog.MergeAlertDialogListener{
             in2 = new FileInputStream(ffile1);
 
             File result = new File(newPath);
-
-
-
 
 
 
@@ -175,21 +181,17 @@ MyMergeAlertDialog.MergeAlertDialogListener{
             ffile0.delete();
             ffile1.delete();
 
-
-
-
-
-
-
             RecordingData mainRecrding = recordings.get(mainRecordingPosition);
 
-            mainRecrding.wavPath = newPath;
+            mainRecrding.wavFile = result;
 
             recordings.remove(subRecordingPosition);
 
             adapter.notifyDataSetChanged();
 
-
+            mainRecordingPosition = -2;
+            subRecordingPosition = -2;
+            setMergeButton();
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -197,17 +199,22 @@ MyMergeAlertDialog.MergeAlertDialogListener{
         }
     }
 
+
     private String getNewFilePath() {
         String currentDate = getCurrentDateForPath();
-        String filePath = this.getFilesDir().getAbsolutePath() + "/nota"
-                + Integer.toString(recordings.size()) + "_" + currentDate;
+
+        String filePath = this.getFilesDir().getAbsolutePath() + "/nota" +
+                "_" + currentDate;
+
         return filePath;
     }
+
     private String getCurrentDateForPath() {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd_HH:mm:ss");
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd_HH.mm.ss");
         String currentDateandTime = sdf.format(new Date());
         return currentDateandTime;
     }
+
 
     private void WriteWaveFileHeader(FileOutputStream out, long totalAudioLen,
                                      long totalDataLen, long longSampleRate, int channels, long byteRate)
@@ -265,17 +272,17 @@ MyMergeAlertDialog.MergeAlertDialogListener{
 
 
 
-
-
-
-
-
-
-    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     public void pause(View v) {
-        if (player != null) {
+        if (player != null && !isPaused) {
             player.pause();
+            pauseButton.setText("wznów");
+            pauseButton.setBackgroundColor(getColor(R.color.green));
+        } else if (player != null) {
+            player.start();
+            pauseButton.setText("Pauza");
+            pauseButton.setBackgroundColor(getColor(R.color.red));
         }
+        isPaused = !isPaused;
     }
 
     public void stop(View v) {
@@ -286,6 +293,9 @@ MyMergeAlertDialog.MergeAlertDialogListener{
         if (player != null) {
             player.release();
             player = null;
+            isPaused = false;
+            stopButton.setBackgroundResource(android.R.drawable.btn_default);
+            pauseButton.setBackgroundResource(android.R.drawable.btn_default);
         }
     }
 
@@ -298,39 +308,18 @@ MyMergeAlertDialog.MergeAlertDialogListener{
     @Override
     public void onRecordingClick(int position) {
         if (player == null) {
-            String path = recordings.get(position).wavPath;
-            File audioFile = new File(path);
+            stopButton.setBackgroundColor(getColor(R.color.red));
+            File audioFile = recordings.get(position).wavFile;
 
-            audioFile.setReadable(true, false);
+          //  Log.d("audioFileLog", "File exists: " + audioFile.exists() + ", can read: " + audioFile.canRead());
+          //  Log.d("audioFileLog", "File size: " + audioFile.length());
 
-            Log.d("audioFileLog", "File exists: " + audioFile.exists() + ", can read: " + audioFile.canRead());
-            Log.d("audioFileLog", "File size: " + audioFile.length());
-
-            player = new MediaPlayer();
-            try {
-                player.setDataSource(path);
-                //player = MediaPlayer.create(this, R.raw.nota1);
-                Log.d("audioFileLog", "Data Source Changed");
-                player.setOnPreparedListener(this);
-                Log.d("audioFileLog", "Listener Set, before prepare method");
-                player.setOnCompletionListener(this);
-
-                //todo cos nie tak z metoda prepare - prepare failed status=0x1 - przez foramt wav?
-                player.prepare();
-                Log.d("audioFileLog", "after prepare method");
-            }
-            catch (IOException e) {
-                e.printStackTrace();
-                Log.d("audioFileLog", "IOException when setting data source");
-            }
+            Uri uri = Uri.fromFile(audioFile);
+            player = MediaPlayer.create(getApplicationContext(), uri);
+            player.setOnCompletionListener(this);
             player.start();
-        }
-    }
 
-    @Override
-    public void onPrepared(MediaPlayer mp) {
-        mp.start();
-        Log.d("audioFileLog", "after start method");
+        }
     }
 
     @Override
@@ -338,35 +327,30 @@ MyMergeAlertDialog.MergeAlertDialogListener{
         stopPlayer();
     }
 
-    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
-
-
-
-
-
-
-
-
-
-
-
     @Override
     public boolean onContextItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case 121:
                 this.mainRecordingPosition = item.getGroupId();
                 this.mainTitleTextView.setText(recordings.get(mainRecordingPosition).title);
+                setMergeButton();
                 return true;
             case 122:
                 this.subRecordingPosition = item.getGroupId();
                 this.subTitleTextView.setText(recordings.get(subRecordingPosition).title);
+                setMergeButton();
                 return true;
             default:
                 return super.onContextItemSelected(item);
         }// switch
     }
 
+    private void setMergeButton() {
+        if((mainRecordingPosition > -1 ) && (subRecordingPosition > -1))
+            mergeButton.setClickable(true);
+        else
+            mergeButton.setClickable(false);
+    }
 
 } // class
 
