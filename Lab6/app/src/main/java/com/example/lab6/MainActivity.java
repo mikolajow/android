@@ -66,7 +66,7 @@ public class MainActivity extends AppCompatActivity {
     private LinkedBlockingQueue<short[]> queue;
     private boolean isRecording = false;
 
-    private int bytesPerElement = 2;        // 2 bytes in 16bit format
+    private int bytesPerElement = 2;        // 2 bytes in 166it format
     private int minimumBufferSize;        // 2 bytes in 16bit format
 
 
